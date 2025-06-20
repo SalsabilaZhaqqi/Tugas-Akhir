@@ -1,0 +1,788 @@
+@extends('layouts.app')
+
+@section('title', 'Dashboard')
+
+@section('content')
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">Dashboard Monitoring</h1>
+    </div>
+
+    <div class="dashboard-status">
+        <div class="status-indicator online">
+            <span class="status-dot"></span>
+            <span class="status-text">System Online</span>
+        </div>
+        <div class="status-time">
+            Last update: <span id="last-update">{{ date('d M Y, H:i:s') }}</span>
+        </div>
+    </div>
+
+    <div class="dashboard-cards">
+        <!-- Radiation Card -->
+        <div class="dashboard-card radiation">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <line x1="12" y1="8" x2="12" y2="4"></line>
+                        <line x1="12" y1="20" x2="12" y2="16"></line>
+                        <line x1="16" y1="12" x2="20" y2="12"></line>
+                        <line x1="4" y1="12" x2="8" y2="12"></line>
+                    </svg>
+                </div>
+                <div class="card-title">Radiasi</div>
+            </div>
+            <div class="card-value" id="radiation-value">87.6 <span class="unit">cpm</span></div>
+            <div class="card-chart">
+                <canvas id="radiation-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Magnetic Field Card -->
+        <div class="dashboard-card magnetic">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v0a10 10 0 0 1 10 10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2A10 10 0 0 1 12 2z"></path>
+                        <path d="M17.8 20c-.4-2.4-2.4-4-4.8-4s-4.4 1.6-4.8 4h9.6z"></path>
+                    </svg>
+                </div>
+                <div class="card-title">Medan Magnet</div>
+            </div>
+            <div class="card-value" id="magnetic-value">0.42 <span class="unit">G</span></div>
+            <div class="card-chart">
+                <canvas id="magnetic-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Signal Card -->
+        <div class="dashboard-card signal">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path>
+                        <line x1="2" y1="20" x2="2.01" y2="20"></line>
+                    </svg>
+                </div>
+                <div class="card-title">Sinyal</div>
+            </div>
+            <div class="card-value" id="signal-value">3.8 <span class="unit">V</span></div>
+            <div class="card-chart">
+                <canvas id="signal-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-container {
+    padding: 10px 0;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.dashboard-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    background: linear-gradient(45deg, #2c3e50, #3498db);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.dashboard-status {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 10px 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.status-indicator.online {
+    color: #10b981;
+}
+
+.status-indicator.online .status-dot {
+    background-color: #10b981;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-indicator.warning {
+    color: #f59e0b;
+}
+
+.status-indicator.warning .status-dot {
+    background-color: #f59e0b;
+}
+
+.status-indicator.danger {
+    color: #ef4444;
+}
+
+.status-indicator.danger .status-dot {
+    background-color: #ef4444;
+}
+
+.status-text {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.status-time {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.dashboard-card {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+}
+
+.radiation .card-icon {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.magnetic .card-icon {
+    background-color: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+}
+
+.signal .card-icon {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.card-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #2c3e50;
+    flex-grow: 1;
+}
+
+.card-menu {
+    color: #94a3b8;
+    cursor: pointer;
+}
+
+.card-value {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 15px 0;
+    color: #1e293b;
+}
+
+.unit {
+    font-size: 16px;
+    color: #64748b;
+    font-weight: 400;
+}
+
+.card-chart {
+    margin: 20px 0;
+    height: 150px;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.card-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.card-status.normal {
+    color: #10b981;
+}
+
+.card-status.warning {
+    color: #f59e0b;
+}
+
+.card-status.good {
+    color: #3b82f6;
+}
+
+.card-trend {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.card-trend.up {
+    color: #10b981;
+}
+
+.card-trend.down {
+    color: #ef4444;
+}
+
+.dashboard-details {
+    margin-top: 30px;
+}
+
+.detail-card {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.detail-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.detail-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.detail-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.detail-btn:hover {
+    background-color: #e9ecef;
+}
+
+.detail-table-container {
+    overflow-x: auto;
+}
+
+.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.detail-table th,
+.detail-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-table th {
+    font-weight: 600;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.detail-table td {
+    color: #1e293b;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.normal {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.status-badge.warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .dashboard-status {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+</style>
+
+<!-- Tambahkan Firebase SDK sebelum Chart.js -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<!-- Tambahkan Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Konfigurasi Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyBwF0xwV0oqn9s4oVVS-757F1V9ZXyGVK0",
+        authDomain: "tugasakhir-6eac8.firebaseapp.com",
+        databaseURL: "https://tugasakhir-6eac8-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "tugasakhir-6eac8",
+        storageBucket: "tugasakhir-6eac8.appspot.com",
+        messagingSenderId: "1015385528362",
+        appId: "1:1015385528362:web:5e3c9c3f8f66666f4f90ae"
+    };
+
+    // Inisialisasi Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Cek koneksi Firebase
+    const connectedRef = firebase.database().ref(".info/connected");
+    connectedRef.on("value", (snap) => {
+        if (snap.val() === true) {
+            console.log("Terhubung ke Firebase");
+            updateStatus('online');
+        } else {
+            console.log("Tidak terhubung ke Firebase");
+            updateStatus('danger');
+        }
+    });
+
+    // Fungsi untuk memuat data dari localStorage
+    function loadChartData() {
+        const savedData = localStorage.getItem('dashboardChartData');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            radiationData = data.radiationData || [];
+            magneticData = data.magneticData || [];
+            signalData = data.signalData || [];
+            labels = data.labels || [];
+        }
+    }
+
+    // Fungsi untuk menyimpan data ke localStorage
+    function saveChartData() {
+        const data = {
+            radiationData,
+            magneticData,
+            signalData,
+            labels
+        };
+        localStorage.setItem('dashboardChartData', JSON.stringify(data));
+    }
+
+    // Data untuk chart
+    let radiationData = [];
+    let magneticData = [];
+    let signalData = [];
+    let labels = [];
+
+    // Muat data yang tersimpan saat halaman dimuat
+    loadChartData();
+    
+    // Inisialisasi chart
+    const radiationChart = new Chart(document.getElementById('radiation-chart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Radiasi (cpm)',
+                data: radiationData,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                borderWidth: 2,
+                spanGaps: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 5,
+                        maxRotation: 0
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        maxTicksLimit: 5
+                    }
+                }
+            },
+            animation: {
+                duration: 0
+            }
+        }
+    });
+    
+    const magneticChart = new Chart(document.getElementById('magnetic-chart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Medan Magnet (G)',
+                data: magneticData,
+                borderColor: '#4f46e5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                borderWidth: 2,
+                spanGaps: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 5,
+                        maxRotation: 0
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        maxTicksLimit: 5
+                    }
+                }
+            },
+            animation: {
+                duration: 0
+            }
+        }
+    });
+    
+    const signalChart = new Chart(document.getElementById('signal-chart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sinyal (V)',
+                data: signalData,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                borderWidth: 2,
+                spanGaps: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 5,
+                        maxRotation: 0
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    },
+                    ticks: {
+                        maxTicksLimit: 5
+                    }
+                }
+            },
+            animation: {
+                duration: 0
+            }
+        }
+    });
+    
+    // Fungsi untuk memperbarui status
+    function updateStatus(status) {
+        const statusIndicator = document.querySelector('.status-indicator');
+        const statusDot = document.querySelector('.status-dot');
+        const statusText = document.querySelector('.status-text');
+        
+        // Hapus kelas status sebelumnya
+        statusIndicator.classList.remove('online', 'warning', 'danger');
+        
+        // Tambahkan kelas status baru
+        statusIndicator.classList.add(status);
+        
+        // Perbarui teks status
+        let text = 'System Online';
+        if (status === 'warning') {
+            text = 'System Warning';
+        } else if (status === 'danger') {
+            text = 'System Danger';
+        }
+        
+        // Update teks status
+        statusText.textContent = text;
+    }
+
+    // Fungsi untuk memperbarui nilai magnetic dari Firebase
+    function updateMagneticFromFirebase() {
+        console.log('Memulai koneksi ke Firebase...');
+        
+        // Referensi ke node magnetic
+        const magneticRef = firebase.database().ref('/');
+        
+        // Mendengarkan perubahan data
+        magneticRef.on('value', (snapshot) => {
+            console.log('Data diterima:', snapshot.val());
+            const data = snapshot.val();
+            
+            if (data && data.magnetic && data.magnetic.gauss !== undefined) {
+                const gaussValue = data.magnetic.gauss;
+                console.log('Nilai gauss:', gaussValue);
+                
+                // Update nilai magnetic pada card
+                document.getElementById('magnetic-value').innerHTML = 
+                    gaussValue.toFixed(2) + ' <span class="unit">G</span>';
+
+                // Update data chart
+                const now = new Date();
+                const timeLabel = now.getHours().toString().padStart(2, '0') + ':' + 
+                                now.getMinutes().toString().padStart(2, '0');
+
+                labels.push(timeLabel);
+                magneticData.push(gaussValue);
+
+                // Batasi jumlah data yang ditampilkan
+                const maxDataPoints = 12;
+                if (labels.length > maxDataPoints) {
+                    labels.shift();
+                    magneticData.shift();
+                }
+
+                // Perbarui chart
+                magneticChart.update('none');
+
+                // Simpan data ke localStorage
+                saveChartData();
+            } else {
+                console.log('Data magnetic tidak ditemukan atau format tidak sesuai');
+            }
+        }, (error) => {
+            console.error('Error membaca data dari Firebase:', error);
+            updateStatus('danger');
+        });
+    }
+
+    // Panggil fungsi untuk mulai mendengarkan perubahan data magnetic
+    updateMagneticFromFirebase();
+
+    // Fungsi untuk memperbarui data menggunakan AJAX (untuk data lainnya)
+    function updateData() {
+        fetch('/api/monitoring/current-data')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.message || 'Terjadi kesalahan saat mengambil data');
+                }
+                
+                // Perbarui nilai radiasi (cpm)
+                document.getElementById('radiation-value').innerHTML = 
+                    data.current.cpm.toFixed(1) + ' <span class="unit">cpm</span>';
+                
+                // Perbarui nilai sinyal (vpm)
+                document.getElementById('signal-value').innerHTML = 
+                    data.current.vpm.toFixed(1) + ' <span class="unit">V</span>';
+                
+                // Perbarui waktu update terakhir
+                document.getElementById('last-update').textContent = new Date().toLocaleString('id-ID');
+                
+                // Perbarui status
+                updateStatus('online');
+                
+                // Perbarui data chart untuk radiasi dan sinyal
+                const now = new Date();
+                const timeLabel = now.getHours().toString().padStart(2, '0') + ':' + 
+                                now.getMinutes().toString().padStart(2, '0');
+                
+                // Tambahkan data baru ke array
+                labels.push(timeLabel);
+                radiationData.push(data.current.cpm);
+                signalData.push(data.current.vpm);
+                
+                // Batasi jumlah data yang ditampilkan
+                const maxDataPoints = 12;
+                if (labels.length > maxDataPoints) {
+                    labels.shift();
+                    radiationData.shift();
+                    signalData.shift();
+                }
+                
+                // Perbarui chart
+                radiationChart.update('none');
+                signalChart.update('none');
+
+                // Simpan data ke localStorage
+                saveChartData();
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                updateStatus('danger');
+                const statusText = document.querySelector('.status-text');
+                statusText.textContent = 'Error: ' + error.message;
+            });
+    }
+    
+    // Mulai pembaruan data otomatis setiap 10 detik (untuk data non-magnetic)
+    setInterval(updateData, 10000);
+    
+    // Panggil updateData sekali saat halaman dimuat
+    updateData();
+
+    // Bersihkan data saat pengguna menutup tab/browser
+    window.addEventListener('beforeunload', () => {
+        localStorage.removeItem('dashboardChartData');
+    });
+
+    // Fungsi untuk memperbarui waktu secara real-time
+    function updateRealTime() {
+        const now = new Date();
+        const day = now.getDate().toString().padStart(2, '0');
+        const month = now.toLocaleString('id-ID', { month: 'short' });
+        const year = now.getFullYear();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        
+        const formattedTime = `${day} ${month} ${year}, ${hours}:${minutes}:${seconds}`;
+        document.getElementById('last-update').textContent = formattedTime;
+    }
+    
+    // Perbarui waktu setiap detik
+    setInterval(updateRealTime, 1000);
+    
+    // Panggil fungsi updateRealTime sekali saat halaman dimuat
+    updateRealTime();
+</script>
+@endsection
