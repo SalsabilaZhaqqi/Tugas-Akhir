@@ -353,12 +353,31 @@ class MonitoringDashboard {
         }
     }
 
-    formatTimestamp(timestamp) {
-        if (!timestamp) return 'N/A';
-        // Convert from 'YYYY-MM-DD_HH:mm:ss' to readable format
-        return timestamp.replace(/_/g, ' ');
-    }
+    // formatTimestamp(timestamp) {
+    //     if (!timestamp) return 'N/A';
+    //     // Convert from 'YYYY-MM-DD_HH:mm:ss' to readable format
+    //     return timestamp.replace(/_/g, ' ');
+    // }
 
+    formatTimestamp(timestamp) {
+    if (!timestamp) return 'N/A';
+
+    // Ambil tanggal UTC dari Firebase: "2025-07-07_06:35:00"
+    const utcDateStr = timestamp.replace('_', 'T') + 'Z'; // jadi "2025-07-07T06:35:00Z"
+    const dateUTC = new Date(utcDateStr);
+
+    // Format ke waktu Indonesia (WIB)
+    return dateUTC.toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+        });
+    }
+    
     async refreshData() {
         if (this.isLoading) return;
         
