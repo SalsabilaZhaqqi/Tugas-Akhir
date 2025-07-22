@@ -338,7 +338,7 @@ class MonitoringDashboard {
             // console.log('Processed data:', this.data);
             
             // Limit to 50 entries
-            this.data = this.data.slice(0, 50);
+            this.data = this.data.slice(0, 100);
             
             this.updateLastTimestamp();
             this.renderTable();
@@ -416,9 +416,9 @@ class MonitoringDashboard {
     }
     
     determineStatus(data) {
-        const CPM_WARNING_THRESHOLD = 50;  // Example threshold for radiation
+        const CPM_WARNING_THRESHOLD = 33;  // Example threshold for radiation
         const GAUSS_WARNING_THRESHOLD = 100;  // Example threshold for magnetic field
-        const VPM_WARNING_THRESHOLD = 100;  // Example threshold for EM field
+        const VPM_WARNING_THRESHOLD = 40;  // Example threshold for EM field
         
         if (data.cpm > CPM_WARNING_THRESHOLD || 
             data.gauss > GAUSS_WARNING_THRESHOLD || 

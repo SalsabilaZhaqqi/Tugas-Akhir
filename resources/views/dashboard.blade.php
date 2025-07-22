@@ -74,6 +74,12 @@
             </div>
         </div>
     </div>
+
+    <!-- Chart Gabungan History Rata-rata 10 Menit -->
+    <div class="dashboard-combined-chart" style="background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); padding:20px; margin-bottom:30px;">
+        <h3 style="margin-bottom: 10px; color: #2c3e50;">Avarage Conditions</h3>
+        <canvas id="combined-chart-history-10min"></canvas>
+    </div>
 </div>
 
 <style>
@@ -391,6 +397,26 @@
         gap: 10px;
     }
 }
+
+.dashboard-combined-chart {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    padding: 20px;
+    margin-bottom: 30px;
+    max-width: 100%;
+}
+.dashboard-combined-chart canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+}
+/* Responsive: tinggi chart lebih kecil di layar mobile */
+@media (max-width: 600px) {
+    .dashboard-combined-chart canvas {
+        height: 220px !important;
+    }
+}
 </style>
 
 <!-- Tambahkan Firebase SDK sebelum Chart.js -->
@@ -452,30 +478,132 @@
     }
 
     // Data untuk chart
+    let chartHistory = []; // [{time: ISOString, cpm, gauss, vpm}]
     let radiationData = [];
     let magneticData = [];
     let signalData = [];
     let labels = [];
 
+    // Data yang disederhanakan untuk chart di dalam card
+    let radiationDataSmall = [];
+    let magneticDataSmall = [];
+    let signalDataSmall = [];
+    let labelsSmall = [];
+
     // Muat data yang tersimpan saat halaman dimuat
-    loadChartData();
+
+    function loadChartHistory() {
+        const saved = localStorage.getItem('dashboardChartHistory');
+        if (saved) {
+            chartHistory = JSON.parse(saved).map(item => ({
+                ...item,
+                time: new Date(item.time)
+            }));
+        }
+        updateChartArrays();
+    }
+
+    function saveChartHistory() {
+        localStorage.setItem('dashboardChartHistory', JSON.stringify(chartHistory));
+    }
+
+    function updateChartArrays() {
+        // Filter hanya data 1 hari terakhir
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        chartHistory = chartHistory.filter(item => item.time >= oneDayAgo);
+
+        labels.length = 0;
+        radiationData.length = 0;
+        magneticData.length = 0;
+        signalData.length = 0;
+
+        chartHistory.forEach(item => {
+            labels.push(item.time.getHours().toString().padStart(2, '0') + ':' + item.time.getMinutes().toString().padStart(2, '0'));
+            radiationData.push(item.cpm);
+            magneticData.push(item.gauss);
+            signalData.push(item.vpm);
+        });
+
+        // Panggil fungsi untuk menyederhanakan data untuk card charts
+        updateSmallChartArrays();
+    }
+
+    function updateSmallChartArrays() {
+        const targetPoints = 40; // Maksimal 40 titik data di chart kecil
+        
+        labelsSmall.length = 0;
+        radiationDataSmall.length = 0;
+        magneticDataSmall.length = 0;
+        signalDataSmall.length = 0;
+
+        if (chartHistory.length <= targetPoints) {
+            chartHistory.forEach(item => {
+                labelsSmall.push(item.time.getHours().toString().padStart(2, '0') + ':' + item.time.getMinutes().toString().padStart(2, '0'));
+                radiationDataSmall.push(item.cpm);
+                magneticDataSmall.push(item.gauss);
+                signalDataSmall.push(item.vpm);
+            });
+        } else {
+            const step = Math.floor(chartHistory.length / targetPoints);
+            for (let i = 0; i < chartHistory.length; i += step) {
+                const item = chartHistory[i];
+                labelsSmall.push(item.time.getHours().toString().padStart(2, '0') + ':' + item.time.getMinutes().toString().padStart(2, '0'));
+                radiationDataSmall.push(item.cpm);
+                magneticDataSmall.push(item.gauss);
+                signalDataSmall.push(item.vpm);
+            }
+        }
+    }
+
+    function addChartData(cpm, gauss, vpm) {
+        const now = new Date();
+        // Cek apakah sudah ada data pada menit yang sama
+        if (
+            chartHistory.length > 0 &&
+            now.getHours() === chartHistory[chartHistory.length - 1].time.getHours() &&
+            now.getMinutes() === chartHistory[chartHistory.length - 1].time.getMinutes()
+        ) {
+            // Replace data terakhir dengan data baru (update)
+            chartHistory[chartHistory.length - 1] = {
+                time: now,
+                cpm: cpm,
+                gauss: gauss,
+                vpm: vpm
+            };
+        } else {
+            // Tambahkan data baru
+            chartHistory.push({
+                time: now,
+                cpm: cpm,
+                gauss: gauss,
+                vpm: vpm
+            });
+        }
+        updateChartArrays();
+        saveChartHistory();
+        // Update semua chart setiap ada data baru
+        radiationChart.update('none');
+        magneticChart.update('none');
+        signalChart.update('none');
+    }
+
+    loadChartHistory();
     
     // Inisialisasi chart
     const radiationChart = new Chart(document.getElementById('radiation-chart'), {
         type: 'line',
         data: {
-            labels: labels,
+            labels: labelsSmall, // Menggunakan data yang disederhanakan
             datasets: [{
                 label: 'Radiasi (cpm)',
-                data: radiationData,
+                data: radiationDataSmall, // Menggunakan data yang disederhanakan
                 borderColor: '#ef4444',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 tension: 0.4,
                 fill: true,
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                borderWidth: 2,
-                spanGaps: true
+                pointRadius: 0, // Titik dihilangkan
+                pointHoverRadius: 5
             }]
         },
         options: {
@@ -487,24 +615,15 @@
                 }
             },
             scales: {
-                x: {
-                    display: true,
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        maxTicksLimit: 5,
-                        maxRotation: 0
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    ticks: {
-                        maxTicksLimit: 5
-                    }
+                x: { display: false }, // Sembunyikan sumbu X
+                y: { 
+                    display: false, // Sembunyikan sumbu Y
+                    beginAtZero: true 
+                }
+            },
+            elements: {
+                line: {
+                    cubicInterpolationMode: 'monotone'
                 }
             },
             animation: {
@@ -512,22 +631,20 @@
             }
         }
     });
-    
+
     const magneticChart = new Chart(document.getElementById('magnetic-chart'), {
         type: 'line',
         data: {
-            labels: labels,
+            labels: labelsSmall, // Menggunakan data yang disederhanakan
             datasets: [{
                 label: 'Medan Magnet (G)',
-                data: magneticData,
+                data: magneticDataSmall, // Menggunakan data yang disederhanakan
                 borderColor: '#4f46e5',
                 backgroundColor: 'rgba(79, 70, 229, 0.1)',
                 tension: 0.4,
                 fill: true,
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                borderWidth: 2,
-                spanGaps: true
+                pointRadius: 0, // Titik dihilangkan
+                pointHoverRadius: 5
             }]
         },
         options: {
@@ -539,24 +656,15 @@
                 }
             },
             scales: {
-                x: {
-                    display: true,
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        maxTicksLimit: 5,
-                        maxRotation: 0
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    ticks: {
-                        maxTicksLimit: 5
-                    }
+                x: { display: false }, // Sembunyikan sumbu X
+                y: { 
+                    display: false, // Sembunyikan sumbu Y
+                    beginAtZero: true 
+                }
+            },
+            elements: {
+                line: {
+                    cubicInterpolationMode: 'monotone'
                 }
             },
             animation: {
@@ -568,18 +676,16 @@
     const signalChart = new Chart(document.getElementById('signal-chart'), {
         type: 'line',
         data: {
-            labels: labels,
+            labels: labelsSmall, // Menggunakan data yang disederhanakan
             datasets: [{
                 label: 'Sinyal (V)',
-                data: signalData,
+                data: signalDataSmall, // Menggunakan data yang disederhanakan
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 tension: 0.4,
                 fill: true,
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                borderWidth: 2,
-                spanGaps: true
+                pointRadius: 0, // Titik dihilangkan
+                pointHoverRadius: 5
             }]
         },
         options: {
@@ -591,24 +697,15 @@
                 }
             },
             scales: {
-                x: {
-                    display: true,
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        maxTicksLimit: 5,
-                        maxRotation: 0
-                    }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    ticks: {
-                        maxTicksLimit: 5
-                    }
+                x: { display: false }, // Sembunyikan sumbu X
+                y: { 
+                    display: false, // Sembunyikan sumbu Y
+                    beginAtZero: true 
+                }
+            },
+            elements: {
+                line: {
+                    cubicInterpolationMode: 'monotone'
                 }
             },
             animation: {
@@ -641,6 +738,23 @@
         statusText.textContent = text;
     }
 
+    // Fungsi untuk mendapatkan data terbaru dalam 5 menit terakhir
+    function getLatestWithin5Minutes(type) {
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        // Cari data terbaru dalam 5 menit terakhir dari belakang
+        for (let i = chartHistory.length - 1; i >= 0; i--) {
+            if (chartHistory[i].time >= fiveMinutesAgo) {
+                if (type === 'cpm') return chartHistory[i].cpm;
+                if (type === 'gauss') return chartHistory[i].gauss;
+                if (type === 'vpm') return chartHistory[i].vpm;
+            } else {
+                break;
+            }
+        }
+        return null;
+    }
+
     // Fungsi untuk memperbarui nilai magnetic dari Firebase
     function updateMagneticFromFirebase() {
         console.log('Memulai koneksi ke Firebase...');
@@ -657,30 +771,17 @@
                 const gaussValue = data.magnetic.gauss;
                 console.log('Nilai gauss:', gaussValue);
                 
-                // Update nilai magnetic pada card
-                document.getElementById('magnetic-value').innerHTML = 
-                    gaussValue.toFixed(2) + ' <span class="unit">G</span>';
+                // Ambil data terbaru dalam 5 menit terakhir
+                const latestGauss = getLatestWithin5Minutes('gauss');
+                document.getElementById('magnetic-value').innerHTML =
+                    (latestGauss !== null ? latestGauss.toFixed(2) : '-') + ' <span class="unit">G</span>';
 
                 // Update data chart
-                const now = new Date();
-                const timeLabel = now.getHours().toString().padStart(2, '0') + ':' + 
-                                now.getMinutes().toString().padStart(2, '0');
-
-                labels.push(timeLabel);
-                magneticData.push(gaussValue);
-
-                // Batasi jumlah data yang ditampilkan
-                const maxDataPoints = 12;
-                if (labels.length > maxDataPoints) {
-                    labels.shift();
-                    magneticData.shift();
-                }
-
-                // Perbarui chart
+                // Ambil data terakhir dari radiasi & sinyal jika ada
+                const lastCpm = radiationData.length > 0 ? radiationData[radiationData.length-1] : 0;
+                const lastVpm = signalData.length > 0 ? signalData[signalData.length-1] : 0;
+                addChartData(lastCpm, gaussValue, lastVpm);
                 magneticChart.update('none');
-
-                // Simpan data ke localStorage
-                saveChartData();
             } else {
                 console.log('Data magnetic tidak ditemukan atau format tidak sesuai');
             }
@@ -707,13 +808,13 @@
                     throw new Error(data.message || 'Terjadi kesalahan saat mengambil data');
                 }
                 
-                // Perbarui nilai radiasi (cpm)
-                document.getElementById('radiation-value').innerHTML = 
-                    data.current.cpm.toFixed(1) + ' <span class="unit">cpm</span>';
-                
-                // Perbarui nilai sinyal (vpm)
-                document.getElementById('signal-value').innerHTML = 
-                    data.current.vpm.toFixed(1) + ' <span class="unit">V</span>';
+                // Ambil data terbaru dalam 5 menit terakhir
+                const latestCpm = getLatestWithin5Minutes('cpm');
+                const latestVpm = getLatestWithin5Minutes('vpm');
+                document.getElementById('radiation-value').innerHTML =
+                    (latestCpm !== null ? latestCpm.toFixed(1) : '-') + ' <span class="unit">cpm</span>';
+                document.getElementById('signal-value').innerHTML =
+                    (latestVpm !== null ? latestVpm.toFixed(1) : '-') + ' <span class="unit">V</span>';
                 
                 // Perbarui waktu update terakhir
                 document.getElementById('last-update').textContent = new Date().toLocaleString('id-ID');
@@ -722,29 +823,11 @@
                 updateStatus('online');
                 
                 // Perbarui data chart untuk radiasi dan sinyal
-                const now = new Date();
-                const timeLabel = now.getHours().toString().padStart(2, '0') + ':' + 
-                                now.getMinutes().toString().padStart(2, '0');
-                
-                // Tambahkan data baru ke array
-                labels.push(timeLabel);
-                radiationData.push(data.current.cpm);
-                signalData.push(data.current.vpm);
-                
-                // Batasi jumlah data yang ditampilkan
-                const maxDataPoints = 12;
-                if (labels.length > maxDataPoints) {
-                    labels.shift();
-                    radiationData.shift();
-                    signalData.shift();
-                }
-                
-                // Perbarui chart
+                // Ambil data terakhir dari magnetic jika ada
+                const lastGauss = magneticData.length > 0 ? magneticData[magneticData.length-1] : 0;
+                addChartData(data.current.cpm, lastGauss, data.current.vpm);
                 radiationChart.update('none');
                 signalChart.update('none');
-
-                // Simpan data ke localStorage
-                saveChartData();
             })
             .catch(error => {
                 console.error('Error fetching data:', error);
@@ -760,12 +843,52 @@
     // Panggil updateData sekali saat halaman dimuat
     updateData();
 
-    // Bersihkan data saat pengguna menutup tab/browser
-    window.addEventListener('beforeunload', () => {
-        localStorage.removeItem('dashboardChartData');
-    });
+    // Add this function after loadChartHistory()
+function clearChartsAtMidnight() {
+    const now = new Date();
+    // Convert to WIB (UTC+7)
+    const wibTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    
+    // Check if it's midnight in WIB
+    if (wibTime.getHours() === 0 && wibTime.getMinutes() === 0) {
+        console.log('Clearing charts data at midnight WIB');
+        
+        // Clear chart history
+        chartHistory = [];
+        
+        // Clear all data arrays
+        radiationData.length = 0;
+        magneticData.length = 0;
+        signalData.length = 0;
+        labels.length = 0;
+        
+        // Clear small chart arrays
+        radiationDataSmall.length = 0;
+        magneticDataSmall.length = 0;
+        signalDataSmall.length = 0;
+        labelsSmall.length = 0;
+        
+        // Update localStorage
+        saveChartHistory();
+        
+        // Update all charts
+        radiationChart.update('none');
+        magneticChart.update('none');
+        signalChart.update('none');
+        
+        // Fetch new history data for combined chart
+        fetchHistoryAndRenderChart();
+    }
+}
 
-    // Fungsi untuk memperbarui waktu secara real-time
+// Add this line after the other setInterval calls
+// Check every minute for midnight reset
+setInterval(clearChartsAtMidnight, 60000);
+
+// Call once when page loads to check if we need to clear
+clearChartsAtMidnight();
+
+// Fungsi untuk memperbarui waktu secara real-time
     function updateRealTime() {
         const now = new Date();
         const day = now.getDate().toString().padStart(2, '0');
@@ -784,5 +907,197 @@
     
     // Panggil fungsi updateRealTime sekali saat halaman dimuat
     updateRealTime();
+
+    // --- Combined Chart dari Firebase History ---
+    function fetchHistoryAndRenderChart() {
+        const historyRef = firebase.database().ref('/history');
+        historyRef.once('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            // Urutkan key timestamp
+            const keys = Object.keys(data).sort();
+            const labels = [];
+            const cpmData = [];
+            const gaussData = [];
+            const vpmData = [];
+            // Untuk chart rata-rata 10 menit
+            const avgLabels = [];
+            const avgCpm = [];
+            const avgGauss = [];
+            const avgVpm = [];
+            let group = [];
+            let groupStart = null;
+            keys.forEach(key => {
+                // Format label: jam:menit dari timestamp
+                let label = key;
+                // Jika format timestamp, ambil jam:menit
+                const match = key.match(/\d{4}-\d{2}-\d{2}_(\d{2}):(\d{2}):(\d{2})$/);
+                let dateObj = null;
+                if (match) {
+                    label = match[1] + ':' + match[2];
+                    // Buat objek Date
+                    const [year, month, day] = key.split('_')[0].split('-');
+                    const hour = match[1], minute = match[2], second = match[3];
+                    dateObj = new Date(year, month-1, day, hour, minute, second);
+                }
+                labels.push(label);
+                cpmData.push(data[key].cpm ?? null);
+                gaussData.push(data[key].gauss ?? null);
+                vpmData.push(data[key].vpm ?? null);
+                // --- Untuk rata-rata 10 menit ---
+                if (dateObj) {
+                    if (!groupStart) {
+                        groupStart = new Date(dateObj);
+                        group = [];
+                    }
+                    // Jika masih dalam rentang 10 menit
+                    if ((dateObj - groupStart) < 10*60*1000) {
+                        group.push(data[key]);
+                    } else {
+                        // Hitung rata-rata group sebelumnya
+                        if (group.length > 0) {
+                            const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+                            avgLabels.push(groupStart.getHours().toString().padStart(2,'0')+':'+groupStart.getMinutes().toString().padStart(2,'0'));
+                            avgCpm.push(avg(group.map(d=>d.cpm||0)));
+                            avgGauss.push(avg(group.map(d=>d.gauss||0)));
+                            avgVpm.push(avg(group.map(d=>d.vpm||0)));
+                        }
+                        // Mulai group baru
+                        groupStart = new Date(dateObj);
+                        group = [data[key]];
+                    }
+                }
+            });
+            // Tambahkan group terakhir
+            if (group.length > 0 && groupStart) {
+                const avg = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+                avgLabels.push(groupStart.getHours().toString().padStart(2,'0')+':'+groupStart.getMinutes().toString().padStart(2,'0'));
+                avgCpm.push(avg(group.map(d=>d.cpm||0)));
+                avgGauss.push(avg(group.map(d=>d.gauss||0)));
+                avgVpm.push(avg(group.map(d=>d.vpm||0)));
+            }
+            // Render chart history
+            new Chart(document.getElementById('combined-chart-history-10min'), {
+                type: 'line',
+                data: {
+                    labels: avgLabels,
+                    datasets: [
+                        {
+                            label: 'Radiasi (cpm)',
+                            data: avgCpm,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                            cubicInterpolationMode: 'monotone',
+                            fill: false,
+                            pointRadius: 1,
+                            pointHoverRadius: 6,
+                            borderWidth: 2,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Medan Magnet (G)',
+                            data: avgGauss,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.05)',
+                            cubicInterpolationMode: 'monotone',
+                            fill: false,
+                            pointRadius: 1,
+                            pointHoverRadius: 6,
+                            borderWidth: 2,
+                            yAxisID: 'y1',
+                        },
+                        {
+                            label: 'Sinyal (V)',
+                            data: avgVpm,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                            cubicInterpolationMode: 'monotone',
+                            fill: false,
+                            pointRadius: 1,
+                            pointHoverRadius: 6,
+                            borderWidth: 2,
+                            yAxisID: 'y2',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    // Ambil label (jam:menit)
+                                    const label = context[0].label;
+                                    // Cari tanggal dari data asli jika memungkinkan
+                                    // Karena label hanya jam:menit, kita ambil tanggal hari ini
+                                    const now = new Date();
+                                    let [hour, minute] = label.split(':');
+                                    let localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hour), parseInt(minute));
+                                    // Tambahkan offset +7 jam (WIB)
+                                    localDate.setHours(localDate.getHours() + 7);
+                                    // Format ke string Indonesia
+                                    const formatted = localDate.toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', second: undefined, hour12: false, timeZone: 'Asia/Jakarta' });
+                                    return 'Waktu (WIB): ' + formatted;
+                                },
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y.toFixed(2);
+                                    }
+                                    // Tambahkan unit
+                                    if (context.dataset.yAxisID === 'y') label += ' cpm';
+                                    if (context.dataset.yAxisID === 'y1') label += ' G';
+                                    if (context.dataset.yAxisID === 'y2') label += ' V';
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: { display: true, text: 'Waktu' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: 'Radiasi (cpm)', color: '#ef4444', font: { weight: 'bold' } },
+                            ticks: { color: '#ef4444' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Medan Magnet (G)', color: '#4f46e5', font: { weight: 'bold' } },
+                            ticks: { color: '#4f46e5' }
+                        },
+                        y2: {
+                            type: 'linear',
+                            display: false, // Tetap disembunyikan agar tidak terlalu ramai, datanya bisa dilihat di tooltip
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Sinyal (V)', color: '#10b981' }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    // Panggil saat halaman dimuat
+    fetchHistoryAndRenderChart();
 </script>
 @endsection
