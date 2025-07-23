@@ -594,15 +594,15 @@
     const radiationChart = new Chart(document.getElementById('radiation-chart'), {
         type: 'line',
         data: {
-            labels: labelsSmall, // Menggunakan data yang disederhanakan
+            labels: labelsSmall,
             datasets: [{
-                label: 'Radiasi (cpm)',
-                data: radiationDataSmall, // Menggunakan data yang disederhanakan
+                label: 'Radiasi',
+                data: radiationDataSmall,
                 borderColor: '#ef4444',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 tension: 0.4,
                 fill: true,
-                pointRadius: 0, // Titik dihilangkan
+                pointRadius: 2,
                 pointHoverRadius: 5
             }]
         },
@@ -612,12 +612,24 @@
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        title: function(context) {
+                            return 'Waktu: ' + context[0].label;
+                        },
+                        label: function(context) {
+                            return `Radiasi: ${context.parsed.y.toFixed(2)} cpm`;
+                        }
+                    }
                 }
             },
             scales: {
-                x: { display: false }, // Sembunyikan sumbu X
+                x: { display: false },
                 y: { 
-                    display: false, // Sembunyikan sumbu Y
+                    display: false,
                     beginAtZero: true 
                 }
             },
@@ -625,6 +637,10 @@
                 line: {
                     cubicInterpolationMode: 'monotone'
                 }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
             },
             animation: {
                 duration: 0
@@ -635,15 +651,15 @@
     const magneticChart = new Chart(document.getElementById('magnetic-chart'), {
         type: 'line',
         data: {
-            labels: labelsSmall, // Menggunakan data yang disederhanakan
+            labels: labelsSmall,
             datasets: [{
-                label: 'Medan Magnet (G)',
-                data: magneticDataSmall, // Menggunakan data yang disederhanakan
+                label: 'Medan Magnet',
+                data: magneticDataSmall,
                 borderColor: '#4f46e5',
                 backgroundColor: 'rgba(79, 70, 229, 0.1)',
                 tension: 0.4,
                 fill: true,
-                pointRadius: 0, // Titik dihilangkan
+                pointRadius: 2,
                 pointHoverRadius: 5
             }]
         },
@@ -653,12 +669,24 @@
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        title: function(context) {
+                            return 'Waktu: ' + context[0].label;
+                        },
+                        label: function(context) {
+                            return `Medan Magnet: ${context.parsed.y.toFixed(2)} G`;
+                        }
+                    }
                 }
             },
             scales: {
-                x: { display: false }, // Sembunyikan sumbu X
+                x: { display: false },
                 y: { 
-                    display: false, // Sembunyikan sumbu Y
+                    display: false,
                     beginAtZero: true 
                 }
             },
@@ -666,6 +694,10 @@
                 line: {
                     cubicInterpolationMode: 'monotone'
                 }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
             },
             animation: {
                 duration: 0
@@ -676,15 +708,15 @@
     const signalChart = new Chart(document.getElementById('signal-chart'), {
         type: 'line',
         data: {
-            labels: labelsSmall, // Menggunakan data yang disederhanakan
+            labels: labelsSmall,
             datasets: [{
-                label: 'Sinyal (V)',
-                data: signalDataSmall, // Menggunakan data yang disederhanakan
+                label: 'Sinyal',
+                data: signalDataSmall,
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 tension: 0.4,
                 fill: true,
-                pointRadius: 0, // Titik dihilangkan
+                pointRadius: 2,
                 pointHoverRadius: 5
             }]
         },
@@ -694,12 +726,24 @@
             plugins: {
                 legend: {
                     display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        title: function(context) {
+                            return 'Waktu: ' + context[0].label;
+                        },
+                        label: function(context) {
+                            return `Sinyal: ${context.parsed.y.toFixed(2)} V`;
+                        }
+                    }
                 }
             },
             scales: {
-                x: { display: false }, // Sembunyikan sumbu X
+                x: { display: false },
                 y: { 
-                    display: false, // Sembunyikan sumbu Y
+                    display: false,
                     beginAtZero: true 
                 }
             },
@@ -707,6 +751,10 @@
                 line: {
                     cubicInterpolationMode: 'monotone'
                 }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
             },
             animation: {
                 duration: 0
